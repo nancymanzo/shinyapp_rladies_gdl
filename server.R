@@ -16,91 +16,108 @@ library(ggthemes)
 library(extrafont) 
 library(waffle)
 
-df_mapa_base<-read.csv("df_mapa.csv") 
-#    select(state_name, value)%>% 
-#     mutate(
-#         state_name = (state_name),
-#         state_name = case_when(
-#             state_name=="Aguascalientes" ~ "Aguascalientes",
-#             state_name=="Baja California" ~ "Baja California",
-#             state_name=="Baja California Sur" ~ "Baja California Sur",
-#             state_name=="Campeche" ~ "Campeche",
-#             state_name=="Coahuila de Zaragoza" ~ "Coahuila",
-#             state_name=="Colima" ~ "Colima",
-#             state_name=="Chiapas" ~ "Chiapas",
-#             state_name=="Chihuahua" ~ "Chihuahua",
-#             state_name=="Ciudad de México" ~ "Ciudad de México",
-#             state_name=="Durango" ~ "Durango",
-#             state_name=="Guanajuato" ~ "Guanajuato",
-#             state_name=="Guerrero" ~ "Guerrero",
-#             state_name=="Hidalgo" ~ "Hidalgo",
-#             state_name=="Jalisco" ~ "Jalisco",
-#             state_name=="México" ~ "México",
-#             state_name=="Michoacán de Ocampo" ~ "Michoacán",
-#             state_name=="Morelos" ~ "Morelos",
-#             state_name=="Nayarit" ~ "Nayarit",
-#             state_name=="Nuevo León" ~ "Nuevo León",
-#             state_name=="Oaxaca" ~ "Oaxaca",
-#             state_name=="Puebla" ~ "Puebla",
-#             state_name=="Querétaro" ~ "Querétaro",
-#             state_name=="Quintana Roo" ~ "Quintana Roo",
-#             state_name=="San Luis Potosí" ~ "San Luis Potosí",
-#             state_name=="Sinaloa" ~ "Sinaloa",
-#             state_name=="Sonora" ~ "Sonora",
-#             state_name=="Tabasco" ~ "Tabasco",
-#             state_name=="Tamaulipas" ~ "Tamaulipas",
-#             state_name=="Tlaxcala" ~ "Tlaxcala",
-#             state_name=="Veracruz de Ignacio de la Llave" ~ "Veracruz",
-#             state_name=="Yucatán" ~ "Yucatán",
-#             state_name=="Zacatecas" ~ "Zacatecas"))
+df_mapa <- read.csv("df_mapa.csv")
 
- 
 maphex <- function(){
-    
+   
     maphex<-mxhexbin_choropleth(df_mapa, num_colors = 1) +  
-        labs(title="Feminicidios por cada 100 mil habitantes por entidad en México, 2020", 
-             caption="Elaborado por R-Ladies GDL con base al SESNSP, 2020 (ENE-SEP) y Proyecciones de la población de CONAPO.",
-             fill="Tasa") +
-        scale_fill_gradient(
+        labs(title="Feminicidios por cada 100 mil habitantes por entidad, 2020", 
+             fill="Tasa")+
+    scale_fill_gradient(
             low = "plum", 
             high = "magenta4",
-            guide = "colourbar")+theme_elegant()+
+            guide = "colourbar")+theme_minimal()+
         theme(text=element_text(family="helvetica",
                                 face="plain",
-                                size=23,
+                                size=2,
                                 hjust = 0.5,
                                 vjust = 0.5),
-              legend.text = element_text(size=10, colour = "grey12"),
-              legend.title = element_text(color = "grey7", size = 13),
-              plot.title = element_text(hjust=0.5, size=15, face="plain", colour="grey6"),
-              plot.caption = element_text(hjust=-1, size=12, face="plain"),
-              plot.margin = margin(1, 1, 1, 1, "cm"))
-    maphex<- ggplotly(maphex, tooltip="value") %>% layout(height = 800, width = 800)
- 
-    
+              axis.title.x = element_blank(),
+              axis.title.y = element_blank(),
+              legend.text = element_text(size=12, colour = "grey12"),
+              legend.title = element_text(color = "grey7", size = 15),
+              plot.title = element_text(family="helvetica",hjust=0.5, size=15, colour="dimgrey"))
+    maphex<- ggplotly(maphex, tooltip="value") %>% layout(height = 800, width = 900)
     mapahexagonal <- plotly::ggplotly(maphex, tooltip = c("value"))}
 
 
-
-
-
-df_mapa_base %>% 
+df_mapa %>% 
     mutate(Entidad=state_name,
-           `Tasa por cada 100 mil habitantes`=round(value, digits=3)) %>% 
+           `Tasa por cada 100 mil habitantes`=as.character(round(value, digits=3))) %>% 
     select(Entidad, `Tasa por cada 100 mil habitantes`) %>% 
     datatable(filter="top", options = list(
-        pageLength = 16)) -> df_mapa_base2
+        pageLength = 16)) -> df_mapa_bas
+#
+#
+#
+#
+
+delitos_historico<- read.csv("Municipal-Delitos-2015-2020_dic2020.csv")
+
+delitos_historico <- delitos_historico %>%
+    mutate(Anio=factor(Anio,
+                         levels=c("2015", "2016", "2017","2018", "2019", "2020")))
 
 
 
-server <- function(input, output, session) {
+base<-delitos_historico %>% 
+    filter(Entidad=="Jalisco",
+           Tipo.de.delito=="Feminicidio") %>% 
+    group_by(Anio) %>% 
+    summarise(ene=sum(Enero),
+              feb=sum(Febrero),
+              mar=sum(Marzo),
+              abr=sum(Abril),
+              may=sum(Mayo),
+              jun=sum(Junio),
+              jul=sum(Julio),
+              ago=sum(Agosto),
+              sep=sum(Septiembre),
+              oct=sum(Octubre),
+              nov=sum(Noviembre),
+              dic=sum(Diciembre),
+              Total=sum(ene+feb+mar+abr+ 
+                                may+jun+jul+ago+
+                                sep+oct+nov+dic)) 
+
+
+ graphcol<- ggplot(base, aes(x=Anio, y=Total))+
+    geom_col(position = "dodge", width=.5, fill="magenta4") +
+    scale_y_continuous(labels=comma, limits = c(0, 70))+
+    theme(legend.position="bottom")+
+    labs(fill = "",
+         x= "",
+         y= "",
+         title = "Total de feminicidios registrados en Jalisco, 2015-2020",
+         caption = "Elaboración propia con base al Secretariado Ejecutivo del Sistema Nacional de Seguridad Pública, SESNSP") +
+    theme_minimal(base_size=25)+
+    theme(text=element_text(family="",
+                            face="plain",
+                            size=23,
+                            hjust = 0.5,
+                            vjust = 0.5),
+          plot.title = element_text(hjust = 0.5, size=20, face="bold"),
+          plot.caption = element_text(hjust = 0, face="plain", size=16, colour="gray20"))
+
+ 
+ ggplotly(graphcol, tooltip="Total") ->grafico_columna
+
+ 
+server <- function(input, output, session) 
+
+{
+    
     mapahexagonal <- maphex()
     output$mapa_hex <- renderPlotly({
         plotly::ggplotly(mapahexagonal, tooltip="value", dynamicTicks = TRUE)
     })
-    
+     
     output$dfmapa = DT::renderDataTable({
-        df_mapa_base2})
+        df_mapa_bas})
+    
+    output$columna<-renderPlotly({
+        plotly::ggplotly(grafico_columna, tooltip="Total", dynamicTicks = TRUE)
+    })
 }
 
 
